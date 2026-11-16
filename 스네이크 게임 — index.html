@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>스네이크 아케이드</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101713;
+      --panel: #18231d;
+      --grid: #24352b;
+      --green: #5bea7b;
+      --green-dark: #2fb653;
+      --text: #f1f7f1;
+      --muted: #a2b4a5;
+      --food: #ff655e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse at 50% 0%, #203329 0, transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    .game {
+      width: min(100%, 560px);
+      padding: clamp(18px, 4vw, 30px);
+      border: 1px solid #314438;
+      border-radius: 22px;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      box-shadow: 0 22px 70px #0007;
+    }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 5vw, 1.9rem);
+      letter-spacing: .02em;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .score-box {
+      min-width: 92px;
+      padding: 9px 14px;
+      border: 1px solid #34483a;
+      border-radius: 13px;
+      background: #111a14;
+      text-align: center;
+    }
+
+    .score-label {
+      display: block;
+      color: var(--muted);
+      font-size: .72rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    #score {
+      display: block;
+      margin-top: 2px;
+      color: var(--green);
+      font-size: 1.45rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .board-wrap {
+      position: relative;
+      width: min(100%, 500px);
+      margin: 0 auto;
+      padding: 8px;
+      overflow: hidden;
+      border: 1px solid #34483a;
+      border-radius: 15px;
+      background: #0c120e;
+      touch-action: none;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(20, minmax(0, 1fr));
+      grid-template-rows: repeat(20, minmax(0, 1fr));
+      gap: 2px;
+      width: 100%;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    .cell {
+      min-width: 0;
+      min-height: 0;
+      border-radius: 2px;
+      background: var(--grid);
+    }
+
+    .cell.snake {
+      background: var(--green-dark);
+      box-shadow: inset 0 0 0 1px #8aff9e55;
+    }
+
+    .cell.head {
+      background: var(--green);
+      box-shadow: 0 0 10px #5bea7b88;
+    }
+
+    .cell.food {
+      border-radius: 50%;
+      background: var(--food);
+      box-shadow: 0 0 12px #ff655e99;
+      transform: scale(.75);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 8px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #08100bd9;
+      text-align: center;
+    }
+
+    .overlay[hidden] { display: none; }
+
+    .overlay-card {
+      padding: 20px;
+    }
+
+    .overlay-title {
+      margin: 0 0 7px;
+      color: var(--green);
+      font-size: clamp(1.35rem, 5vw, 1.8rem);
+    }
+
+    .overlay-message {
+      margin: 0;
+      color: #d1dfd3;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 17px 0 18px;
+    }
+
+    button {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid #3b5141;
+      border-radius: 11px;
+      background: #233329;
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background .15s, transform .1s;
+    }
+
+    button:hover { background: #2d4233; }
+    button:active { transform: scale(.96); }
+
+    button.primary {
+      border-color: #62eb80;
+      background: var(--green);
+      color: #102016;
+    }
+
+    button.primary:hover { background: #82f394; }
+
+    .touch-controls {
+      width: 174px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 54px);
+      gap: 7px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .touch-controls button {
+      min-height: 0;
+      padding: 0;
+      border-radius: 14px;
+      background: #26382b;
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .touch-controls button:active { background: #3b5942; }
+    .up { grid-column: 2; grid-row: 1; }
+    .left { grid-column: 1; grid-row: 2; }
+    .down { grid-column: 2; grid-row: 2; }
+    .right { grid-column: 3; grid-row: 2; }
+
+    .help {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #b7ffc4;
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 420px) {
+      body { padding: 12px 10px; }
+      .game { padding: 16px 13px 18px; border-radius: 18px; }
+      .board-wrap { padding: 6px; }
+      .overlay { inset: 6px; }
+      .controls { gap: 7px; }
+      .controls button { padding-inline: 12px; }
+      .help { font-size: .78rem; }
+    }
+
+    @media (pointer: coarse) {
+      .touch-controls button { min-height: 54px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <header class="topline">
+      <div>
+        <h1>스네이크</h1>
+        <p class="subtitle">먹이를 먹고 최고 점수에 도전하세요</p>
+      </div>
+      <div class="score-box" aria-live="polite">
+        <span class="score-label">Score</span>
+        <span id="score">0</span>
+      </div>
+    </header>
+
+    <div class="board-wrap">
+      <div id="board" role="img" aria-label="20칸 격자 게임 화면"></div>
+      <div id="overlay" class="overlay">
+        <div class="overlay-card">
+          <h2 id="overlay-title" class="overlay-title">준비되셨나요?</h2>
+          <p id="overlay-message" class="overlay-message">시작 버튼을 눌러 게임을 시작하세요.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="start-button" class="primary" type="button">시작</button>
+      <button id="pause-button" type="button">일시정지</button>
+      <button id="restart-button" type="button">다시 시작</button>
+    </div>
+
+    <div class="touch-controls" aria-label="터치 방향 조작">
+      <button class="up" type="button" aria-label="위" data-direction="up">▲</button>
+      <button class="left" type="button" aria-label="왼쪽" data-direction="left">◀</button>
+      <button class="down" type="button" aria-label="아래" data-direction="down">▼</button>
+      <button class="right" type="button" aria-label="오른쪽" data-direction="right">▶</button>
+    </div>
+
+    <p class="help">PC: 방향키로 이동 · 모바일/태블릿: 방향 버튼으로 이동<br>먹이를 먹으면 10점이 추가됩니다.</p>
+  </main>
+
+  <script>
+    (() => {
+      const SIZE = 20;
+      const SPEED = 140;
+
+      const board = document.getElementById("board");
+      const scoreElement = document.getElementById("score");
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlay-title");
+      const overlayMessage = document.getElementById("overlay-message");
+      const startButton = document.getElementById("start-button");
+      const pauseButton = document.getElementById("pause-button");
+      const restartButton = document.getElementById("restart-button");
+
+      const cells = [];
+      for (let i = 0; i < SIZE * SIZE; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        board.appendChild(cell);
+        cells.push(cell);
+      }
+
+      let snake;
+      let food;
+      let direction;
+      let nextDirection;
+      let score;
+      let timer = null;
+      let state = "ready"; // ready, running, paused, over
+      let turnLocked = false;
+
+      const vectors = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 }
+      };
+
+      function samePosition(a, b) {
+        return a.x === b.x && a.y === b.y;
+      }
+
+      function render() {
+        for (const cell of cells) cell.className = "cell";
+
+        cells[food.y * SIZE + food.x].classList.add("food");
+
+        snake.forEach((segment, index) => {
+          const cell = cells[segment.y * SIZE + segment.x];
+          cell.classList.add("snake");
+          if (index === 0) cell.classList.add("head");
+        });
+
+        scoreElement.textContent = score;
+      }
+
+      function placeFood() {
+        const empty = [];
+        for (let y = 0; y < SIZE; y++) {
+          for (let x = 0; x < SIZE; x++) {
+            if (!snake.some(segment => segment.x === x && segment.y === y)) {
+              empty.push({ x, y });
+            }
+          }
+        }
+
+        if (empty.length === 0) {
+          finishGame(true);
+          return;
+        }
+
+        food = empty[Math.floor(Math.random() * empty.length)];
+      }
+
+      function showOverlay(title, message) {
+        overlayTitle.textContent = title;
+        overlayMessage.textContent = message;
+        overlay.hidden = false;
+      }
+
+      function hideOverlay() {
+        overlay.hidden = true;
+      }
+
+      function resetGame() {
+        clearInterval(timer);
+        timer = null;
+        snake = [
+          { x: 9, y: 10 },
+          { x: 8, y: 10 },
+          { x: 7, y: 10 }
+        ];
+        direction = "right";
+        nextDirection = "right";
+        score = 0;
+        turnLocked = false;
+        state = "ready";
+        placeFood();
+        render();
+        showOverlay("준비되셨나요?", "시작 버튼을 눌러 게임을 시작하세요.");
+      }
+
+      function startGame() {
+        if (state === "running" || state === "over") return;
+        state = "running";
+        hideOverlay();
+        clearInterval(timer);
+        timer = setInterval(tick, SPEED);
+      }
+
+      function pauseGame() {
+        if (state !== "running") return;
+        clearInterval(timer);
+        timer = null;
+        state = "paused";
+        showOverlay("일시정지", "계속하려면 시작 버튼을 누르세요.");
+      }
+
+      function finishGame(won = false) {
+        clearInterval(timer);
+        timer = null;
+        state = "over";
+        showOverlay(
+          won ? "승리!" : "게임 종료",
+          won ? `모든 먹이를 모았습니다! 점수: ${score}` : `최종 점수: ${score}점`
+        );
+      }
+
+      function tick() {
+        direction = nextDirection;
+        turnLocked = false;
+
+        const vector = vectors[direction];
+        const head = {
+          x: snake[0].x + vector.x,
+          y: snake[0].y + vector.y
+        };
+
+        const eating = samePosition(head, food);
+        const hitsWall = head.x < 0 || head.x >= SIZE || head.y < 0 || head.y >= SIZE;
+        const bodyToCheck = eating ? snake : snake.slice(0, -1);
+        const hitsSelf = bodyToCheck.some(segment => samePosition(segment, head));
+
+        if (hitsWall || hitsSelf) {
+          finishGame();
+          return;
+        }
+
+        snake.unshift(head);
+
+        if (eating) {
+          score += 10;
+          placeFood();
+        } else {
+          snake.pop();
+        }
+
+        render();
+      }
+
+      function changeDirection(newDirection) {
+        if (!vectors[newDirection] || state === "over") return;
+        if (state === "ready" || state === "paused") startGame();
+        if (state !== "running" || turnLocked) return;
+
+        const current = vectors[nextDirection];
+        const requested = vectors[newDirection];
+
+        // 한 번의 이동 주기 안에 방향 전환을 한 번만 허용하고,
+        // 진행 방향의 정반대 방향은 무시합니다.
+        if (current.x + requested.x === 0 && current.y + requested.y === 0) return;
+
+        nextDirection = newDirection;
+        turnLocked = true;
+      }
+
+      document.addEventListener("keydown", event => {
+        const keyMap = {
+          ArrowUp: "up",
+          ArrowDown: "down",
+          ArrowLeft: "left",
+          ArrowRight: "right"
+        };
+
+        const newDirection = keyMap[event.key];
+        if (!newDirection) return;
+
+        event.preventDefault();
+        changeDirection(newDirection);
+      });
+
+      document.querySelectorAll("[data-direction]").forEach(button => {
+        button.addEventListener("pointerdown", event => {
+          event.preventDefault();
+          changeDirection(button.dataset.direction);
+        });
+      });
+
+      startButton.addEventListener("click", startGame);
+      pauseButton.addEventListener("click", pauseGame);
+      restartButton.addEventListener("click", () => {
+        resetGame();
+        startGame();
+      });
+
+      resetGame();
+    })();
+  </script>
+</body>
+</html>
